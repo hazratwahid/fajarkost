@@ -1,0 +1,6 @@
+{
+  "name": "SiKost Pro - PropTech Kost Bulanan",
+  "description": "Sistem manajemen operasional kost bulanan terlengkap: monitoring okupansi real-time, tagihan otomatis & WhatsApp, pencatatan meteran listrik, serta tiket komplain perbaikan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
