@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Room, 
   Tenant, 
@@ -21,6 +21,12 @@ import {
   KostProfile
 } from './types';
 import { STAFF_MEMBERS, DEFAULT_OWNER_PROFILE, KOST_INFO } from './data/mockData';
+import { 
+  fetchKostData, 
+  pushSyncUpdate, 
+  subscribeToRealtimeSync, 
+  SyncStatus 
+} from './lib/api';
 import { 
   getInitialAppState, 
   saveStoredData, 
@@ -106,6 +112,88 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDark]);
+
+  // Real-time Multi-Device Sync Status
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('syncing');
+  const isReceivingRemoteUpdate = useRef(false);
+  const isInitialMount = useRef(true);
+
+  // Subscribe to central server real-time SSE & fetch initial snapshot
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchKostData().then(serverData => {
+      if (serverData && isMounted) {
+        isReceivingRemoteUpdate.current = true;
+        if (serverData.rooms) setRooms(serverData.rooms);
+        if (serverData.tenants) setTenants(serverData.tenants);
+        if (serverData.invoices) setInvoices(serverData.invoices);
+        if (serverData.tickets) setTickets(serverData.tickets);
+        if (serverData.expenses) setExpenses(serverData.expenses);
+        if (serverData.meterLogs) setMeterLogs(serverData.meterLogs);
+        if (serverData.staffList) setStaffList(serverData.staffList);
+        if (serverData.ownerProfile) setOwnerProfile(serverData.ownerProfile);
+        if (serverData.kostProfile) setKostProfile(serverData.kostProfile);
+        setTimeout(() => {
+          isReceivingRemoteUpdate.current = false;
+        }, 500);
+      }
+    });
+
+    const unsubscribe = subscribeToRealtimeSync(
+      (freshData) => {
+        if (!isMounted) return;
+        isReceivingRemoteUpdate.current = true;
+        if (freshData.rooms) setRooms(freshData.rooms);
+        if (freshData.tenants) setTenants(freshData.tenants);
+        if (freshData.invoices) setInvoices(freshData.invoices);
+        if (freshData.tickets) setTickets(freshData.tickets);
+        if (freshData.expenses) setExpenses(freshData.expenses);
+        if (freshData.meterLogs) setMeterLogs(freshData.meterLogs);
+        if (freshData.staffList) setStaffList(freshData.staffList);
+        if (freshData.ownerProfile) setOwnerProfile(freshData.ownerProfile);
+        if (freshData.kostProfile) setKostProfile(freshData.kostProfile);
+        setTimeout(() => {
+          isReceivingRemoteUpdate.current = false;
+        }, 500);
+      },
+      (status) => {
+        if (isMounted) setSyncStatus(status);
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  // Debounced push to server whenever local state changes, broadcasting to other devices
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (isReceivingRemoteUpdate.current) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      pushSyncUpdate({
+        rooms,
+        tenants,
+        invoices,
+        tickets,
+        expenses,
+        meterLogs,
+        staffList,
+        ownerProfile,
+        kostProfile,
+      });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [rooms, tenants, invoices, tickets, expenses, meterLogs, staffList, ownerProfile, kostProfile]);
 
   // Persist State Changes
   useEffect(() => {
@@ -634,6 +722,8 @@ export default function App() {
         toggleDark={() => setIsDark(!isDark)}
         unverifiedCount={unverifiedCount}
         openTicketsCount={openTicketsCount}
+        syncStatus={syncStatus}
+        onLogout={() => setIsAuthModalOpen(true)}
       />
 
       {/* Main Viewport Container */}
@@ -953,6 +1043,17 @@ export default function App() {
         staffList={staffList}
         ownerProfile={ownerProfile}
         kostProfile={kostProfile}
+        onLogout={() => {
+          setCurrentSession({
+            role: 'owner',
+            userId: ownerProfile.id,
+            name: ownerProfile.name,
+            title: ownerProfile.title,
+            emailOrPhone: `${ownerProfile.email} · ${ownerProfile.phone}`,
+          });
+          setRole('owner');
+          setActiveTab('dashboard');
+        }}
       />
 
       {/* Staff Management & Permissions Matrix Modal (Owner Only) */}

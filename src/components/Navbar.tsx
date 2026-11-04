@@ -31,6 +31,8 @@ interface NavbarProps {
   toggleDark: () => void;
   unverifiedCount: number;
   openTicketsCount: number;
+  syncStatus?: 'connected' | 'syncing' | 'offline';
+  onLogout?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -48,6 +50,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   toggleDark,
   unverifiedCount,
   openTicketsCount,
+  syncStatus = 'connected',
+  onLogout,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -299,6 +303,35 @@ export const Navbar: React.FC<NavbarProps> = ({
               </>
             )}
 
+            {/* Real-time Multi-Device Sync Indicator */}
+            <div 
+              title={
+                syncStatus === 'connected' 
+                  ? 'Real-Time Sync Aktif: Data otomatis sinkron ke seluruh perangkat secara instan.' 
+                  : syncStatus === 'syncing' 
+                  ? 'Sedang menyinkronkan data antar perangkat...' 
+                  : 'Mode Offline: Akan sinkron saat kembali online.'
+              }
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                syncStatus === 'connected'
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
+                  : syncStatus === 'syncing'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800/60'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/60'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${
+                syncStatus === 'connected'
+                  ? 'bg-emerald-500 animate-pulse'
+                  : syncStatus === 'syncing'
+                  ? 'bg-blue-500 animate-ping'
+                  : 'bg-amber-500'
+              }`} />
+              <span className="font-mono text-[10px]">
+                {syncStatus === 'connected' ? 'Live Sync' : syncStatus === 'syncing' ? 'Syncing...' : 'Offline'}
+              </span>
+            </div>
+
             {/* Theme Toggle */}
             <button
               onClick={toggleDark}
@@ -307,6 +340,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
+
+            {/* Direct Logout Button */}
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                title="Keluar dari sesi saat ini"
+                className="hidden lg:inline-flex items-center gap-1 p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
 
           </div>
         </div>
