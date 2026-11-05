@@ -25,6 +25,7 @@ import {
   fetchKostData, 
   pushSyncUpdate, 
   subscribeToRealtimeSync, 
+  forceSyncNow,
   SyncStatus 
 } from './lib/api';
 import { 
@@ -116,7 +117,7 @@ export default function App() {
   // Real-time Multi-Device Sync Status
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('syncing');
   const isReceivingRemoteUpdate = useRef(false);
-  const isInitialMount = useRef(true);
+  const isInitialSynced = useRef(false);
 
   // Subscribe to central server real-time SSE & fetch initial snapshot
   useEffect(() => {
@@ -134,9 +135,12 @@ export default function App() {
         if (serverData.staffList) setStaffList(serverData.staffList);
         if (serverData.ownerProfile) setOwnerProfile(serverData.ownerProfile);
         if (serverData.kostProfile) setKostProfile(serverData.kostProfile);
+        isInitialSynced.current = true;
         setTimeout(() => {
           isReceivingRemoteUpdate.current = false;
-        }, 500);
+        }, 300);
+      } else if (isMounted) {
+        isInitialSynced.current = true;
       }
     });
 
@@ -153,9 +157,10 @@ export default function App() {
         if (freshData.staffList) setStaffList(freshData.staffList);
         if (freshData.ownerProfile) setOwnerProfile(freshData.ownerProfile);
         if (freshData.kostProfile) setKostProfile(freshData.kostProfile);
+        isInitialSynced.current = true;
         setTimeout(() => {
           isReceivingRemoteUpdate.current = false;
-        }, 500);
+        }, 300);
       },
       (status) => {
         if (isMounted) setSyncStatus(status);
@@ -170,10 +175,11 @@ export default function App() {
 
   // Debounced push to server whenever local state changes, broadcasting to other devices
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    // DO NOT push until this device has successfully received central data from the server
+    if (!isInitialSynced.current) {
       return;
     }
+    // DO NOT push back updates that were just received from another device
     if (isReceivingRemoteUpdate.current) {
       return;
     }
@@ -190,7 +196,7 @@ export default function App() {
         ownerProfile,
         kostProfile,
       });
-    }, 350);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [rooms, tenants, invoices, tickets, expenses, meterLogs, staffList, ownerProfile, kostProfile]);
@@ -724,6 +730,7 @@ export default function App() {
         openTicketsCount={openTicketsCount}
         syncStatus={syncStatus}
         onLogout={() => setIsAuthModalOpen(true)}
+        onForceSync={() => forceSyncNow()}
       />
 
       {/* Main Viewport Container */}

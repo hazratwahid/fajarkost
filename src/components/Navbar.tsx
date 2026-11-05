@@ -13,7 +13,8 @@ import {
   LogOut,
   ChevronDown,
   Layers,
-  KeyRound
+  KeyRound,
+  RefreshCw
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -33,6 +34,7 @@ interface NavbarProps {
   openTicketsCount: number;
   syncStatus?: 'connected' | 'syncing' | 'offline';
   onLogout?: () => void;
+  onForceSync?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -52,6 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   openTicketsCount,
   syncStatus = 'connected',
   onLogout,
+  onForceSync,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
@@ -303,16 +306,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               </>
             )}
 
-            {/* Real-time Multi-Device Sync Indicator */}
-            <div 
+            {/* Real-time Multi-Device Sync Indicator & Manual Sync Button */}
+            <button
+              type="button"
+              onClick={onForceSync}
               title={
                 syncStatus === 'connected' 
-                  ? 'Real-Time Sync Aktif: Data otomatis sinkron ke seluruh perangkat secara instan.' 
+                  ? 'Real-Time Sync Aktif: Data otomatis sinkron ke seluruh perangkat secara instan. Klik untuk segarkan paksa.' 
                   : syncStatus === 'syncing' 
                   ? 'Sedang menyinkronkan data antar perangkat...' 
-                  : 'Mode Offline: Akan sinkron saat kembali online.'
+                  : 'Mode Offline: Klik untuk mencoba sinkronisasi ulang.'
               }
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer hover:opacity-90 active:scale-95 ${
                 syncStatus === 'connected'
                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
                   : syncStatus === 'syncing'
@@ -320,17 +325,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800/60'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${
-                syncStatus === 'connected'
-                  ? 'bg-emerald-500 animate-pulse'
-                  : syncStatus === 'syncing'
-                  ? 'bg-blue-500 animate-ping'
-                  : 'bg-amber-500'
-              }`} />
-              <span className="font-mono text-[10px]">
-                {syncStatus === 'connected' ? 'Live Sync' : syncStatus === 'syncing' ? 'Syncing...' : 'Offline'}
+              <RefreshCw className={`w-3 h-3 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+              <span className="font-mono text-[10px] hidden sm:inline">
+                {syncStatus === 'connected' ? 'Live Multi-Device' : syncStatus === 'syncing' ? 'Menyinkronkan...' : 'Offline'}
               </span>
-            </div>
+              <span className="font-mono text-[10px] sm:hidden">
+                {syncStatus === 'connected' ? 'Live' : syncStatus === 'syncing' ? 'Sync' : 'Off'}
+              </span>
+            </button>
 
             {/* Theme Toggle */}
             <button

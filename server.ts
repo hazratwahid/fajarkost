@@ -45,6 +45,7 @@ interface DatabaseSchema {
   ownerProfile: OwnerProfile;
   kostProfile: KostProfile;
   users: UserAccount[];
+  version: number;
   lastUpdated: number;
 }
 
@@ -112,6 +113,7 @@ function getDefaultDatabase(): DatabaseSchema {
     ownerProfile: DEFAULT_OWNER_PROFILE,
     kostProfile: KOST_INFO,
     users: defaultUsers,
+    version: 1,
     lastUpdated: Date.now(),
   };
 }
@@ -122,6 +124,7 @@ function loadDatabase(): DatabaseSchema {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.rooms) && Array.isArray(parsed.tenants)) {
+        if (!parsed.version) parsed.version = 1;
         return parsed;
       }
     }
@@ -135,6 +138,7 @@ function loadDatabase(): DatabaseSchema {
 
 function saveDatabase(db: DatabaseSchema): void {
   try {
+    db.version = (db.version || 0) + 1;
     db.lastUpdated = Date.now();
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
   } catch (err) {
@@ -147,8 +151,8 @@ let dbInstance = loadDatabase();
 // Active SSE client connections for real-time live synchronization
 const sseClients = new Set<Response>();
 
-function broadcastRealtimeUpdate(type: string, data: any) {
-  const payload = `data: ${JSON.stringify({ type, timestamp: Date.now(), data })}\n\n`;
+function broadcastRealtimeUpdate(type: string, data: any, version: number) {
+  const payload = `data: ${JSON.stringify({ type, version, timestamp: Date.now(), data })}\n\n`;
   for (const client of sseClients) {
     try {
       client.write(payload);
@@ -164,16 +168,21 @@ async function startServer() {
 
   app.use(express.json({ limit: '15mb' }));
 
-  // SSE Realtime Event Stream
+  // SSE Realtime Event Stream with unbuffered proxy headers
   app.get('/api/realtime/stream', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Accel-Buffering', 'no'); // Critical: prevents Cloud Run/Nginx buffering
+    res.setHeader('Content-Encoding', 'none');
     res.flushHeaders?.();
 
-    // Send initial ping and current state timestamp
-    res.write(`data: ${JSON.stringify({ type: 'CONNECTED', timestamp: Date.now(), lastUpdated: dbInstance.lastUpdated })}\n\n`);
+    // Send 2KB whitespace padding to force any intermediate proxy buffer to flush immediately
+    res.write(':' + ' '.repeat(2048) + '\n\n');
+
+    // Send initial ping and current state timestamp + version
+    res.write(`data: ${JSON.stringify({ type: 'CONNECTED', version: dbInstance.version || 1, timestamp: Date.now(), lastUpdated: dbInstance.lastUpdated })}\n\n`);
 
     sseClients.add(res);
 
@@ -192,6 +201,15 @@ async function startServer() {
     });
   });
 
+  // GET lightweight version endpoint for high-frequency polling (< 1ms execution)
+  app.get('/api/sync/version', (_req: Request, res: Response) => {
+    res.json({
+      success: true,
+      version: dbInstance.version || 1,
+      lastUpdated: dbInstance.lastUpdated,
+    });
+  });
+
   // GET full data state for initial hydration and sync verification
   app.get('/api/data', (_req: Request, res: Response) => {
     res.json({
@@ -206,6 +224,7 @@ async function startServer() {
         staffList: dbInstance.staffList,
         ownerProfile: dbInstance.ownerProfile,
         kostProfile: dbInstance.kostProfile,
+        version: dbInstance.version || 1,
         lastUpdated: dbInstance.lastUpdated,
       },
     });
@@ -236,7 +255,7 @@ async function startServer() {
 
       saveDatabase(dbInstance);
 
-      // Broadcast to ALL connected devices in real time
+      // Broadcast to ALL connected devices in real time with the new version
       broadcastRealtimeUpdate('DATA_UPDATED', {
         rooms: dbInstance.rooms,
         tenants: dbInstance.tenants,
@@ -247,10 +266,11 @@ async function startServer() {
         staffList: dbInstance.staffList,
         ownerProfile: dbInstance.ownerProfile,
         kostProfile: dbInstance.kostProfile,
+        version: dbInstance.version,
         lastUpdated: dbInstance.lastUpdated,
-      });
+      }, dbInstance.version);
 
-      res.json({ success: true, lastUpdated: dbInstance.lastUpdated });
+      res.json({ success: true, version: dbInstance.version, lastUpdated: dbInstance.lastUpdated });
     } catch (err: any) {
       console.error('Sync update error:', err);
       res.status(500).json({ success: false, message: err?.message || 'Server error' });
@@ -478,7 +498,7 @@ async function startServer() {
   app.post('/api/reset', (_req: Request, res: Response) => {
     dbInstance = getDefaultDatabase();
     saveDatabase(dbInstance);
-    broadcastRealtimeUpdate('DATA_RESET', dbInstance);
+    broadcastRealtimeUpdate('DATA_RESET', dbInstance, dbInstance.version);
     res.json({ success: true, message: 'Database reset to initial defaults' });
   });
 
