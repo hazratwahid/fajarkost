@@ -1,0 +1,217 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "Boarding house room unit entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "number": { "type": "string", "maxLength": 32 },
+        "floor": { "type": "number" },
+        "type": { "type": "string", "enum": ["Standard", "Deluxe", "VIP Suite"] },
+        "basePrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["occupied", "vacant", "maintenance", "pending_payment"] },
+        "sizeM2": { "type": "number" },
+        "facilities": { "type": "array" },
+        "currentTenantId": { "type": "string", "maxLength": 128 },
+        "doorPin": { "type": "string", "maxLength": 32 },
+        "keycardUid": { "type": "string", "maxLength": 64 },
+        "lastMeterKwh": { "type": "number" },
+        "currentMeterKwh": { "type": "number" },
+        "kwhRate": { "type": "number" },
+        "imageUrl": { "type": "string", "maxLength": 1024 }
+      },
+      "required": ["id", "number", "floor", "type", "basePrice", "status", "sizeM2", "facilities", "doorPin", "lastMeterKwh", "currentMeterKwh", "kwhRate"]
+    },
+    "Tenant": {
+      "title": "Tenant",
+      "description": "Tenant profile and lease record entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "nik": { "type": "string", "maxLength": 32 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "email": { "type": "string", "maxLength": 128 },
+        "occupation": { "type": "string", "maxLength": 128 },
+        "institution": { "type": "string", "maxLength": 128 },
+        "emergencyContact": { "type": "object" },
+        "idCardPhotoUrl": { "type": "string", "maxLength": 1024 },
+        "roomId": { "type": "string", "maxLength": 128 },
+        "startDate": { "type": "string", "maxLength": 32 },
+        "endDate": { "type": "string", "maxLength": 32 },
+        "rentDueDay": { "type": "number" },
+        "depositAmount": { "type": "number" },
+        "isAutoRenew": { "type": "boolean" },
+        "notes": { "type": "string", "maxLength": 1024 },
+        "status": { "type": "string", "enum": ["active", "graduated", "evicted"] }
+      },
+      "required": ["id", "name", "nik", "phone", "email", "occupation", "roomId", "startDate", "endDate", "rentDueDay", "depositAmount", "isAutoRenew", "status"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Monthly rent and utility billing invoice entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "invoiceNumber": { "type": "string", "maxLength": 64 },
+        "tenantId": { "type": "string", "maxLength": 128 },
+        "roomId": { "type": "string", "maxLength": 128 },
+        "periodMonth": { "type": "string", "maxLength": 64 },
+        "dueDate": { "type": "string", "maxLength": 32 },
+        "baseRent": { "type": "number" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["unpaid", "verifying", "paid", "overdue"] },
+        "paymentDate": { "type": "string", "maxLength": 64 },
+        "paymentMethod": { "type": "string", "maxLength": 64 },
+        "proofReceiptUrl": { "type": "string", "maxLength": 1024 },
+        "verifiedBy": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 1024 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "invoiceNumber", "tenantId", "roomId", "periodMonth", "dueDate", "baseRent", "items", "totalAmount", "status", "createdAt"]
+    },
+    "MaintenanceTicket": {
+      "title": "MaintenanceTicket",
+      "description": "Repair request and maintenance ticketing entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ticketNumber": { "type": "string", "maxLength": 64 },
+        "roomId": { "type": "string", "maxLength": 128 },
+        "tenantId": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "enum": ["AC", "Wi-Fi", "Plumbing", "Listrik", "Kunci/Pintu", "Kebersihan", "Lainnya"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+        "title": { "type": "string", "maxLength": 256 },
+        "description": { "type": "string", "maxLength": 2048 },
+        "reportedAt": { "type": "string", "maxLength": 64 },
+        "assignedStaff": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["open", "in_progress", "resolved"] },
+        "resolvedAt": { "type": "string", "maxLength": 64 },
+        "resolutionNotes": { "type": "string", "maxLength": 2048 },
+        "expenseAmount": { "type": "number" },
+        "expenseLoggedToFinance": { "type": "boolean" }
+      },
+      "required": ["id", "ticketNumber", "roomId", "category", "priority", "title", "description", "reportedAt", "status"]
+    },
+    "FinancialRecord": {
+      "title": "FinancialRecord",
+      "description": "Income and operational expense record entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 32 },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "category": { "type": "string", "maxLength": 64 },
+        "description": { "type": "string", "maxLength": 512 },
+        "amount": { "type": "number" },
+        "roomId": { "type": "string", "maxLength": 128 },
+        "invoiceId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "date", "type", "category", "description", "amount"]
+    },
+    "MeterLog": {
+      "title": "MeterLog",
+      "description": "Electricity meter KWh reading log entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "roomId": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 32 },
+        "previousKwh": { "type": "number" },
+        "currentKwh": { "type": "number" },
+        "consumedKwh": { "type": "number" },
+        "recordedBy": { "type": "string", "maxLength": 128 },
+        "billed": { "type": "boolean" }
+      },
+      "required": ["id", "roomId", "date", "previousKwh", "currentKwh", "consumedKwh", "recordedBy", "billed"]
+    },
+    "StaffMember": {
+      "title": "StaffMember",
+      "description": "Caretaker and maintenance staff profile entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "maxLength": 64 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "email": { "type": "string", "maxLength": 128 },
+        "shift": { "type": "string", "maxLength": 128 },
+        "active": { "type": "boolean" },
+        "permissions": { "type": "object" }
+      },
+      "required": ["id", "name", "role", "phone"]
+    },
+    "OwnerProfile": {
+      "title": "OwnerProfile",
+      "description": "Owner super-admin profile and identity configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 128 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "email": { "type": "string", "maxLength": 128 },
+        "address": { "type": "string", "maxLength": 512 },
+        "pin": { "type": "string", "maxLength": 32 },
+        "notes": { "type": "string", "maxLength": 1024 }
+      },
+      "required": ["id", "name", "title", "phone", "email"]
+    },
+    "KostProfile": {
+      "title": "KostProfile",
+      "description": "Kost property metadata and bank/wifi details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 128 },
+        "tagline": { "type": "string", "maxLength": 256 },
+        "address": { "type": "string", "maxLength": 512 },
+        "city": { "type": "string", "maxLength": 128 },
+        "caretakerName": { "type": "string", "maxLength": 128 },
+        "caretakerPhone": { "type": "string", "maxLength": 32 },
+        "bankAccounts": { "type": "array" },
+        "wifiSsids": { "type": "array" }
+      },
+      "required": ["name", "address", "city"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Room units in Kost Fajar Balikpapan"
+    },
+    "/tenants/{tenantId}": {
+      "schema": "Tenant",
+      "description": "Registered boarding house tenants"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Monthly billing records and payment verifications"
+    },
+    "/tickets/{ticketId}": {
+      "schema": "MaintenanceTicket",
+      "description": "Maintenance and repair service tickets"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "FinancialRecord",
+      "description": "Income and operational expenditure records"
+    },
+    "/meterLogs/{meterLogId}": {
+      "schema": "MeterLog",
+      "description": "Periodic electricity meter reading logs"
+    },
+    "/staff/{staffId}": {
+      "schema": "StaffMember",
+      "description": "Operational caretaker and maintenance staff team"
+    },
+    "/config/ownerProfile": {
+      "schema": "OwnerProfile",
+      "description": "Owner super-admin profile"
+    },
+    "/config/kostProfile": {
+      "schema": "KostProfile",
+      "description": "Kost identity, bank accounts, and facility settings"
+    }
+  }
+}

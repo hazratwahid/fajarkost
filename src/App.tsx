@@ -28,6 +28,8 @@ import {
   forceSyncNow,
   SyncStatus 
 } from './lib/api';
+import { testFirestoreConnection } from './lib/firebase';
+import { subscribeToFirestore, seedInitialFirestoreData } from './lib/firestoreSync';
 import { 
   getInitialAppState, 
   saveStoredData, 
@@ -119,10 +121,41 @@ export default function App() {
   const isReceivingRemoteUpdate = useRef(false);
   const isInitialSynced = useRef(false);
 
-  // Subscribe to central server real-time SSE & fetch initial snapshot
+  // Subscribe to central server real-time SSE, Firestore & fetch initial snapshot
   useEffect(() => {
     let isMounted = true;
 
+    // 1. Initialize Firestore connection test & seed initial data
+    testFirestoreConnection().then(() => {
+      seedInitialFirestoreData();
+    });
+
+    // 2. Attach real-time Firestore listeners for instant multi-device sync
+    const unsubFirestore = subscribeToFirestore(
+      (firestoreData) => {
+        if (!isMounted) return;
+        isReceivingRemoteUpdate.current = true;
+        if (firestoreData.rooms) setRooms(firestoreData.rooms);
+        if (firestoreData.tenants) setTenants(firestoreData.tenants);
+        if (firestoreData.invoices) setInvoices(firestoreData.invoices);
+        if (firestoreData.tickets) setTickets(firestoreData.tickets);
+        if (firestoreData.expenses) setExpenses(firestoreData.expenses);
+        if (firestoreData.meterLogs) setMeterLogs(firestoreData.meterLogs);
+        if (firestoreData.staffList) setStaffList(firestoreData.staffList);
+        if (firestoreData.ownerProfile) setOwnerProfile(firestoreData.ownerProfile);
+        if (firestoreData.kostProfile) setKostProfile(firestoreData.kostProfile);
+        isInitialSynced.current = true;
+        setSyncStatus('connected');
+        setTimeout(() => {
+          isReceivingRemoteUpdate.current = false;
+        }, 300);
+      },
+      (status) => {
+        if (isMounted) setSyncStatus(status);
+      }
+    );
+
+    // 3. Central server snapshot & fallback SSE
     fetchKostData().then(serverData => {
       if (serverData && isMounted) {
         isReceivingRemoteUpdate.current = true;
@@ -144,7 +177,7 @@ export default function App() {
       }
     });
 
-    const unsubscribe = subscribeToRealtimeSync(
+    const unsubscribeSSE = subscribeToRealtimeSync(
       (freshData) => {
         if (!isMounted) return;
         isReceivingRemoteUpdate.current = true;
@@ -169,7 +202,8 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      unsubscribe();
+      unsubFirestore();
+      unsubscribeSSE();
     };
   }, []);
 
